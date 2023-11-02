@@ -4,58 +4,76 @@
 
 int main(void) {
     // Initialization
-    // Get the primary monitor's width and height
-    //MONITOR_DEFAULT_PRIMARY=GetCurrentMonitor();
+    const int initialScreenWidth = 800;
+    const int initialScreenHeight = 450;
+    InitWindow(initialScreenWidth, initialScreenHeight, "Raylib Resizable Window with Zoom");
 
-    InitWindow(0, 0, "Raylib Blue Square Example - Adaptive Resolution");
+    // Set our window to be resizable
+    SetWindowState(FLAG_WINDOW_RESIZABLE);
 
-    const int screenWidth = GetMonitorWidth(0);
-    const int screenHeight = GetMonitorHeight(0);
-    const int screenArea=screenWidth*screenHeight;
-    const float screenDiagonal = sqrt((float)screenArea);
+    // Define squares properties
+    const float redSquareSize = 50.0f; // Size of the red square
+    const float blueSquareSize = 30.0f; // Size of the blue square
+    Vector2 redSquarePosition = { initialScreenWidth / 2.0f, initialScreenHeight / 2.0f };
+    Vector2 blueSquarePosition = { 0.0f, 0.0f }; // This will be updated to follow the mouse
 
-    printf("Key Square Position: X: %d, Y: %d\n", screenWidth, screenHeight);
+    // Define movement speed for the red square
+    const float squareSpeed = 200.0f;
 
-    // Define the size of the squares as a percentage of the screen width
-    const float MouseSquareSizePercent = 0.05f; // 20% of the screen width for the blue square
-    const float KeySquareSizePercent = 0.02f; // 5% of the screen width for the red square
+    // Initialize the camera
+    Camera2D camera = { 0 };
+    camera.target = redSquarePosition;
+    camera.offset = (Vector2){ initialScreenWidth / 2, initialScreenHeight / 2 };
+    camera.rotation = 0.0f;
+    camera.zoom = 1.0f;
 
-    const float MouseSquareSize = screenWidth * MouseSquareSizePercent;
-    const float KeySquareSize = screenWidth * KeySquareSizePercent;
-    
-    Color MouseColor = BLUE;
-    Color KeyColor = RED;
-
-    Vector2 MouseSquarePosition = { (screenWidth - MouseSquareSize) / 2, (screenHeight - MouseSquareSize) / 2 };
-    Vector2 KeySquarePosition = { (screenWidth - KeySquareSize) / 2, (screenHeight - KeySquareSize) / 2 };
-    
-  
+    // Set Target FPS (Frames per second)
+    SetTargetFPS(60);
 
     // Main game loop
+    float lastTime = GetTime();
     while (!WindowShouldClose()) {
         // Update
-        Vector2 mousePosition = GetMousePosition();
-        MouseSquarePosition.x = mousePosition.x - MouseSquareSize / 2;
-        MouseSquarePosition.y = mousePosition.y - MouseSquareSize / 2;
+        // Handle zoom with mouse wheel
+        camera.zoom += GetMouseWheelMove() * 0.05f;
+        camera.zoom = fmaxf(camera.zoom, 0.1f); // Prevent zoom from going too small
+        camera.zoom = fminf(camera.zoom, 3.0f); // Prevent zoom from going too large
 
-        //moving the red square
+        // Check if the window has been resized
+        if (IsWindowResized()) {
+            camera.offset = (Vector2){ GetScreenWidth() / 2, GetScreenHeight() / 2 };
+        }
 
-        float deltaTime = GetFrameTime();
-        const float moveSpeed = screenDiagonal*0.3f; // Units per second
-        if (IsKeyDown(KEY_RIGHT)) KeySquarePosition.x += moveSpeed * deltaTime;
-        if (IsKeyDown(KEY_LEFT))  KeySquarePosition.x -= moveSpeed * deltaTime;
-        if (IsKeyDown(KEY_UP))    KeySquarePosition.y -= moveSpeed * deltaTime;
-        if (IsKeyDown(KEY_DOWN))  KeySquarePosition.y += moveSpeed * deltaTime;
+        // Calculate the delta time (time since last frame)
+        float currentTime = GetTime();
+        float deltaTime = currentTime - lastTime;
+        lastTime = currentTime; // Update lastTime for the next frame
 
-        // if (IsKeyDown(KEY_SPACE)) {
-        //     printf("Key Square Position: X: %f, Y: %f\n", KeySquarePosition.x, KeySquarePosition.y);
-        // }
+        // Update the red square's position based on arrow key input
+        if (IsKeyDown(KEY_RIGHT)) redSquarePosition.x += squareSpeed * GetFrameTime();
+        if (IsKeyDown(KEY_LEFT)) redSquarePosition.x -= squareSpeed * GetFrameTime();
+        if (IsKeyDown(KEY_UP)) redSquarePosition.y -= squareSpeed * GetFrameTime();
+        if (IsKeyDown(KEY_DOWN)) redSquarePosition.y += squareSpeed * GetFrameTime();
+
+        // Update camera target to follow the red square
+        //camera.target = redSquarePosition;
+
+        // Convert mouse position to world space
+        blueSquarePosition = GetScreenToWorld2D(GetMousePosition(), camera);
+        blueSquarePosition.x -= blueSquareSize / 2; // Center the square on the mouse
+        blueSquarePosition.y -= blueSquareSize / 2;
 
         // Draw
         BeginDrawing();
             ClearBackground(RAYWHITE);
-            DrawRectangleV(MouseSquarePosition, (Vector2){ MouseSquareSize, MouseSquareSize }, MouseColor);
-            DrawRectangleV(KeySquarePosition, (Vector2){ KeySquareSize, KeySquareSize }, KeyColor);
+
+            BeginMode2D(camera);
+                // Draw the red square
+                DrawRectangleV(redSquarePosition, (Vector2){ redSquareSize, redSquareSize }, RED);
+
+                // Draw the blue square
+                DrawRectangleV(blueSquarePosition, (Vector2){ blueSquareSize, blueSquareSize }, BLUE);
+            EndMode2D();
         EndDrawing();
     }
 
